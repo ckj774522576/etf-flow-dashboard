@@ -1039,10 +1039,8 @@ tr:hover td{background:#263548}
 
     var picker = document.getElementById('etfPicker');
     var rangeSel = document.getElementById('etfRange');
-    var code = picker ? picker.value : ETF_POOL[0].code;
-    var range = rangeSel ? parseInt(rangeSel.value) : 120;
 
-    // 初始化下拉框
+    // 初始化下拉框（如果还没初始化）
     if (picker && !picker.options.length) {
       ETF_POOL.forEach(function(e) {
         var opt = document.createElement('option');
@@ -1050,8 +1048,12 @@ tr:hover td{background:#263548}
         opt.textContent = e.name + ' (' + e.code + ')';
         picker.appendChild(opt);
       });
-      picker.value = code;
+      picker.value = ETF_POOL[0].code;
     }
+
+    var code = picker ? picker.value : ETF_POOL[0].code;
+    if (!code) code = ETF_POOL[0].code;
+    var range = rangeSel ? parseInt(rangeSel.value) : 120;
 
     var etfInfo = ETF_POOL.find(function(e) { return e.code === code; });
     if (!etfInfo) return;
@@ -1281,18 +1283,20 @@ tr:hover td{background:#263548}
     var yd = calcYearlyData();
     var years = yd.years;
     var yearSel = document.getElementById('yearSelect');
-    var selYear = yearSel ? parseInt(yearSel.value) : years[years.length - 1];
 
-    // 初始化年份选择器（从大到小排）
+    // 先初始化年份选择器（从大到小排）
     if (yearSel && !yearSel.options.length) {
       years.slice().reverse().forEach(function(y) {
         var opt = document.createElement('option');
         opt.value = y;
         opt.textContent = y + '年';
-        if (y === selYear) opt.selected = true;
         yearSel.appendChild(opt);
       });
     }
+
+    var selYear = yearSel ? parseInt(yearSel.value) : years[years.length - 1];
+    if (!selYear) selYear = years[years.length - 1];
+    if (yearSel && !yearSel.value) yearSel.value = selYear;
 
     var sectors = Object.keys(yd.sectorYearly);
     var yearLabels = years.map(function(y){return y + '';});
