@@ -1601,17 +1601,19 @@ tr:hover td{background:#263548}
   }
 
   function renderAll() {
-    renderOverview();
-    renderHeatmap();
-    renderTopCharts();
-    renderFlowTrend();
-    renderPriceTrend();
-    renderLongPriceTrend();
-    renderEtfDetail();
-    renderScatter();
-    renderWeekMonthCharts();
-    renderYearlyCharts();
-    renderTable();
+    window._debug = window._debug || {};
+    try { renderOverview(); window._debug.renderOverview = 'ok'; } catch(e) { window._debug.renderOverview = e.message; }
+    try { renderHeatmap(); window._debug.renderHeatmap = 'ok'; } catch(e) { window._debug.renderHeatmap = e.message; }
+    try { renderTopCharts(); window._debug.renderTopCharts = 'ok'; } catch(e) { window._debug.renderTopCharts = e.message; }
+    try { renderFlowTrend(); window._debug.renderFlowTrend = 'ok'; } catch(e) { window._debug.renderFlowTrend = e.message; }
+    try { renderPriceTrend(); window._debug.renderPriceTrend = 'ok'; } catch(e) { window._debug.renderPriceTrend = e.message; }
+    try { renderLongPriceTrend(); window._debug.renderLongPriceTrend = 'ok'; } catch(e) { window._debug.renderLongPriceTrend = e.message; }
+    try { renderEtfDetail(); window._debug.renderEtfDetail = 'ok'; } catch(e) { window._debug.renderEtfDetail = e.message; }
+    try { renderScatter(); window._debug.renderScatter = 'ok'; } catch(e) { window._debug.renderScatter = e.message; }
+    try { renderWeekMonthCharts(); window._debug.renderWeekMonthCharts = 'ok'; } catch(e) { window._debug.renderWeekMonthCharts = e.message; }
+    try { renderYearlyCharts(); window._debug.renderYearlyCharts = 'ok'; } catch(e) { window._debug.renderYearlyCharts = e.message; }
+    try { renderTable(); window._debug.renderTable = 'ok'; } catch(e) { window._debug.renderTable = e.message; }
+    window._debug.etfDataLen = etfData ? etfData.length : -1;
   }
 
   // 响应式
