@@ -1032,13 +1032,23 @@ tr:hover td{background:#263548}
         '</select>';
     } else {
       label.textContent = '📅 月份';
-      wrap.innerHTML = '<select id="monthPicker" onchange="onDateChange()" style="background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:6px;padding:6px 10px;font-size:12px">' +
-        '<option value="0" selected>本月</option>' +
-        '<option value="-1">上月</option>' +
-        '<option value="-2">2个月前</option>' +
-        '<option value="-3">3个月前</option>' +
-        '<option value="-6">半年前</option>' +
-        '</select>';
+      // 生成从最早数据到当前月的所有月份
+      var months = [];
+      var curMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      // 250天 ≈ 12个月
+      for (var m = 12; m >= 0; m--) {
+        var dt = new Date(curMonth.getTime());
+        dt.setMonth(dt.getMonth() - m);
+        months.push({
+          value: dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0'),
+          label: dt.getFullYear() + '年' + (dt.getMonth()+1) + '月'
+        });
+      }
+      var curVal = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0');
+      var optionsHtml = months.map(function(mo){
+        return '<option value="'+mo.value+'" ' + (mo.value === curVal ? 'selected' : '') + '>' + mo.label + '</option>';
+      }).join('');
+      wrap.innerHTML = '<select id="monthPicker" onchange="onDateChange()" style="background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:6px;padding:6px 10px;font-size:12px">' + optionsHtml + '</select>';
     }
 
     // 更新标签
@@ -1059,12 +1069,31 @@ tr:hover td{background:#263548}
   }
 
   window.onDateChange = function() {
-    var val = document.getElementById('datePicker').value;
-    if(val) state.date = new Date(val);
-    // 这里可以根据日期重新生成数据（简化处理：刷新数据）
+    var dp = document.getElementById('datePicker');
+    var wp = document.getElementById('weekPicker');
+    var mp = document.getElementById('monthPicker');
+
+    if (dp && dp.value) {
+      state.date = new Date(dp.value);
+    } else if (wp) {
+      // 周选择 - 简化处理，用偏移量计算日期
+      var offset = parseInt(wp.value);
+      var d = new Date();
+      if (offset < 0) d.setDate(d.getDate() + offset * 7);
+      state.date = d;
+    } else if (mp && mp.value) {
+      // 月份选择，选该月最后一天
+      var parts = mp.value.split('-');
+      var year = parseInt(parts[0]);
+      var month = parseInt(parts[1]) - 1;
+      var lastDay = new Date(year, month + 1, 0);
+      state.date = lastDay;
+    }
+
     updateStatus('updating');
     setTimeout(function(){
-      trendData = generateTrendData();
+      trendData = generateTrendData(20, Math.floor(state.date.getTime()/86400000));
+      longTrendData = generateTrendData(250, Math.floor(state.date.getTime()/86400000) - 200);
       fetchQuotes(function(err, quotes) {
         etfData = buildData(quotes || {});
         renderAll();
