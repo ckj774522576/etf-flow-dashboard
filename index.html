@@ -1096,8 +1096,9 @@ tr:hover td{background:#263548}
     var dot = document.getElementById('statusDot');
     var text = document.getElementById('statusText');
     var time = document.getElementById('updateTime');
+    if(!dot || !text) return;
     if(s === 'updating') { dot.className='dot'; text.textContent='正在获取最新行情...'; }
-    else if(s === 'ok') { dot.className='dot ok'; text.textContent='✅ 数据已更新'; time.textContent='更新时间：'+new Date().toLocaleString('zh-CN'); }
+    else if(s === 'ok') { dot.className='dot ok'; text.textContent='✅ 数据已更新'; if(time) time.textContent='更新时间：'+new Date().toLocaleString('zh-CN'); }
     else if(s === 'error') { dot.style.background='#ef4444'; text.textContent='⚠️ 实时行情获取失败，显示估算数据'; }
   }
 
@@ -1108,10 +1109,6 @@ tr:hover td{background:#263548}
     renderFlowTrend();
     renderPriceTrend();
     renderLongPriceTrend();
-    renderScatter();
-    renderWeekMonthCharts();
-    renderTable();
-  }
     renderScatter();
     renderWeekMonthCharts();
     renderTable();
