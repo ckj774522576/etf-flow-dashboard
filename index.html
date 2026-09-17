@@ -516,6 +516,17 @@ tr:hover td{background:#263548}
       return Math.sqrt(-2 * Math.log(u + 0.0001)) * Math.cos(2 * Math.PI * v);
     }
 
+    // 初始化每只ETF的基准价格和规模
+    var etfState = {};
+    ETF_POOL.forEach(function(etf, idx) {
+      var basePrice = 1.5 + rand() * 2.5; // 1.5~4元
+      if (etf.sector === '债券') basePrice = 95 + rand() * 15; // 债券95~110元
+      if (etf.sector === '宽基') basePrice = 2.5 + rand() * 2.5; // 宽基2.5~5元
+      var baseAum = 20 + rand() * 200; // 20~220亿
+      if (etf.sector === '宽基') baseAum = 200 + rand() * 600; // 宽基200~800亿
+      etfState[etf.code] = { price: basePrice, aum: baseAum };
+    });
+
     // 生成N个交易日
     for (var i = days - 1; i >= 0; i--) {
       var d = new Date(today);
@@ -539,12 +550,22 @@ tr:hover td{background:#263548}
         var change = baseChange + (sectorBias[etf.sector] || 0) + randn() * 0.8;
         change = Math.max(-8, Math.min(8, change));
 
+        var state = etfState[etf.code];
+        var prevPrice = state.price;
+        var newPrice = Math.max(0.1, prevPrice * (1 + change / 100));
+        var flow = change * (2 + rand() * 3) + randn() * 1.5;
+        var newAum = Math.max(1, state.aum + flow);
+        state.price = newPrice;
+        state.aum = newAum;
+
         dayData.etfs.push({
           code: etf.code,
           name: etf.name,
           sector: etf.sector,
-          change: change,
-          flow: change * (2 + rand() * 3) + randn() * 1.5
+          price: Math.round(newPrice * 1000) / 1000,
+          change: Math.round(change * 100) / 100,
+          flow: Math.round(flow * 100) / 100,
+          aum: Math.round(newAum * 10) / 10
         });
       });
 
@@ -1061,31 +1082,37 @@ tr:hover td{background:#263548}
     // 提取该ETF的长周期数据
     var etfHistory = longTrendData.map(function(d) {
       var etf = d.etfs.find(function(e) { return e.code === code; });
-      return etf ? { date: d.date, time: d.time, price: etf.price, flow: etf.flow, change: etf.change, aum: etf.aum } : null;
-    }).filter(function(x) { return x !== null; });
+      return etf ? { date: d.date, time: d.time, price: etf.price, flow: etf.flow != null ? etf.flow : 0, change: etf.change != null ? etf.change : 0, aum: etf.aum != null ? etf.aum : 0 } : null;
+    }).filter(function(x) { return x !== null && x.price != null; });
+
+    if (!etfHistory.length) return;
 
     var showDays = Math.min(range, etfHistory.length);
     var data = etfHistory.slice(-showDays);
+    if (!data.length) return;
     var dates = data.map(function(d) { return d.date.slice(5); });
 
     // 基本信息卡片
     var latest = data[data.length - 1];
     var first = data[0];
-    var totalReturn = first.price ? ((latest.price / first.price - 1) * 100).toFixed(2) : '0';
+    var totalReturn = first.price > 0 ? ((latest.price / first.price - 1) * 100) : 0;
     var totalFlow = data.reduce(function(s, d) { return s + (d.flow || 0); }, 0);
-    var maxPrice = Math.max.apply(null, data.map(function(d){return d.price;}));
-    var minPrice = Math.min.apply(null, data.map(function(d){return d.price;}));
+    var prices = data.map(function(d){return d.price;}).filter(function(p){return p != null;});
+    var maxPrice = prices.length ? Math.max.apply(null, prices) : 0;
+    var minPrice = prices.length ? Math.min.apply(null, prices) : 0;
     var maxDrawdown = 0;
-    var peak = data[0].price;
-    for (var i = 1; i < data.length; i++) {
-      if (data[i].price > peak) peak = data[i].price;
-      var dd = (data[i].price / peak - 1) * 100;
-      if (dd < maxDrawdown) maxDrawdown = dd;
+    if (data.length > 1) {
+      var peak = data[0].price;
+      for (var i = 1; i < data.length; i++) {
+        if (data[i].price > peak) peak = data[i].price;
+        var dd = (data[i].price / peak - 1) * 100;
+        if (dd < maxDrawdown) maxDrawdown = dd;
+      }
     }
 
     var infoHtml = [
       { label: '最新价格', val: latest.price.toFixed(3), color: totalReturn >= 0 ? '#ef4444' : '#22c55e' },
-      { label: '区间涨跌', val: totalReturn + '%', color: totalReturn >= 0 ? '#ef4444' : '#22c55e' },
+      { label: '区间涨跌', val: totalReturn.toFixed(2) + '%', color: totalReturn >= 0 ? '#ef4444' : '#22c55e' },
       { label: '区间净流入', val: totalFlow.toFixed(1) + '亿', color: totalFlow >= 0 ? '#ef4444' : '#22c55e' },
       { label: '最高/最低', val: maxPrice.toFixed(2) + ' / ' + minPrice.toFixed(2), color: '#94a3b8' },
       { label: '最大回撤', val: maxDrawdown.toFixed(1) + '%', color: '#f97316' }
@@ -1601,19 +1628,17 @@ tr:hover td{background:#263548}
   }
 
   function renderAll() {
-    window._debug = window._debug || {};
-    try { renderOverview(); window._debug.renderOverview = 'ok'; } catch(e) { window._debug.renderOverview = e.message; }
-    try { renderHeatmap(); window._debug.renderHeatmap = 'ok'; } catch(e) { window._debug.renderHeatmap = e.message; }
-    try { renderTopCharts(); window._debug.renderTopCharts = 'ok'; } catch(e) { window._debug.renderTopCharts = e.message; }
-    try { renderFlowTrend(); window._debug.renderFlowTrend = 'ok'; } catch(e) { window._debug.renderFlowTrend = e.message; }
-    try { renderPriceTrend(); window._debug.renderPriceTrend = 'ok'; } catch(e) { window._debug.renderPriceTrend = e.message; }
-    try { renderLongPriceTrend(); window._debug.renderLongPriceTrend = 'ok'; } catch(e) { window._debug.renderLongPriceTrend = e.message; }
-    try { renderEtfDetail(); window._debug.renderEtfDetail = 'ok'; } catch(e) { window._debug.renderEtfDetail = e.message; }
-    try { renderScatter(); window._debug.renderScatter = 'ok'; } catch(e) { window._debug.renderScatter = e.message; }
-    try { renderWeekMonthCharts(); window._debug.renderWeekMonthCharts = 'ok'; } catch(e) { window._debug.renderWeekMonthCharts = e.message; }
-    try { renderYearlyCharts(); window._debug.renderYearlyCharts = 'ok'; } catch(e) { window._debug.renderYearlyCharts = e.message; }
-    try { renderTable(); window._debug.renderTable = 'ok'; } catch(e) { window._debug.renderTable = e.message; }
-    window._debug.etfDataLen = etfData ? etfData.length : -1;
+    renderOverview();
+    renderHeatmap();
+    renderTopCharts();
+    renderFlowTrend();
+    renderPriceTrend();
+    renderLongPriceTrend();
+    renderEtfDetail();
+    renderScatter();
+    renderWeekMonthCharts();
+    renderYearlyCharts();
+    renderTable();
   }
 
   // 响应式
