@@ -49,6 +49,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;backgr
 .chart-card{background:#1e293b;border-radius:12px;padding:16px}
 .chart-card h3{font-size:14px;font-weight:600;margin-bottom:12px;padding-left:10px;border-left:3px solid #6366f1;display:flex;align-items:center;justify-content:space-between}
 .chart-card h3 .hint{font-size:11px;font-weight:400;color:#64748b}
+.chart-title-sm{font-size:12px;font-weight:600;color:#e2e8f0;margin-bottom:8px}
 .chart-full{grid-column:1/-1}
 
 /* 热力图 */
@@ -215,6 +216,9 @@ tr:hover td{background:#263548}
           <option value="医药">医药</option>
           <option value="金融">金融</option>
           <option value="周期">周期</option>
+          <option value="宽基">宽基</option>
+          <option value="红利">红利</option>
+          <option value="债券">债券</option>
           <option value="其他">其他</option>
         </select>
         <select id="trendRange" onchange="renderFlowTrend(); renderLongPriceTrend();" style="background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:6px;padding:4px 8px;font-size:11px">
@@ -241,6 +245,9 @@ tr:hover td{background:#263548}
           <option value="医药">医药</option>
           <option value="金融">金融</option>
           <option value="周期">周期</option>
+          <option value="宽基">宽基</option>
+          <option value="红利">红利</option>
+          <option value="债券">债券</option>
         </select>
       </span>
     </h3>
@@ -283,6 +290,33 @@ tr:hover td{background:#263548}
 
   <div class="section-divider"></div>
 
+  <!-- 年度表现 -->
+  <div class="chart-card chart-full" style="margin-bottom:20px">
+    <h3>
+      📆 年度表现对比 <span class="hint">各板块历年涨跌幅 & 年度ETF排行</span>
+      <span style="display:flex;gap:6px;align-items:center">
+        <select id="yearSelect" onchange="renderYearlyCharts()" style="background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:6px;padding:4px 8px;font-size:11px">
+        </select>
+      </span>
+    </h3>
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-top:12px">
+      <div>
+        <div class="chart-title-sm">板块年度涨跌幅</div>
+        <div id="chartYearlySector" style="width:100%;height:320px"></div>
+      </div>
+      <div>
+        <div class="chart-title-sm">ETF年度涨幅TOP10</div>
+        <div id="chartYearlyTop" style="width:100%;height:320px"></div>
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <div class="chart-title-sm">各板块历年收益对比</div>
+      <div id="chartYearlyCompare" style="width:100%;height:300px"></div>
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
   <!-- 详细数据表 -->
   <div class="chart-card">
     <h3>📋 详细数据 <span class="hint">点击表头排序，可筛选板块和周期</span></h3>
@@ -296,6 +330,9 @@ tr:hover td{background:#263548}
           <option value="医药">医药</option>
           <option value="金融">金融</option>
           <option value="周期">周期</option>
+          <option value="宽基">宽基</option>
+          <option value="红利">红利</option>
+          <option value="债券">债券</option>
           <option value="其他">其他</option>
         </select>
       </label>
@@ -377,12 +414,12 @@ tr:hover td{background:#263548}
   var ETF_POOL = [
     {code:'512480', name:'半导体ETF', sector:'科技成长'},
     {code:'159995', name:'芯片ETF', sector:'科技成长'},
-    {code:'588000', name:'科创50ETF', sector:'科技成长'},
     {code:'515050', name:'5GETF', sector:'科技成长'},
     {code:'515880', name:'通信ETF', sector:'科技成长'},
     {code:'562500', name:'机器人ETF', sector:'科技成长'},
     {code:'515030', name:'新能源车ETF', sector:'新能源'},
     {code:'515790', name:'光伏ETF', sector:'新能源'},
+    {code:'516160', name:'新能源ETF', sector:'新能源'},
     {code:'512690', name:'酒ETF', sector:'消费'},
     {code:'159928', name:'消费ETF', sector:'消费'},
     {code:'515170', name:'食品饮料ETF', sector:'消费'},
@@ -396,12 +433,25 @@ tr:hover td{background:#263548}
     {code:'512400', name:'有色金属ETF', sector:'周期'},
     {code:'512660', name:'军工ETF', sector:'其他'},
     {code:'512200', name:'房地产ETF', sector:'其他'},
-    {code:'516160', name:'新能源ETF', sector:'新能源'}
+    {code:'510300', name:'沪深300ETF', sector:'宽基'},
+    {code:'510500', name:'中证500ETF', sector:'宽基'},
+    {code:'510050', name:'上证50ETF', sector:'宽基'},
+    {code:'588000', name:'科创50ETF', sector:'宽基'},
+    {code:'159915', name:'创业板ETF', sector:'宽基'},
+    {code:'510880', name:'红利ETF', sector:'红利'},
+    {code:'515080', name:'红利低波ETF', sector:'红利'},
+    {code:'515180', name:'中证红利ETF', sector:'红利'},
+    {code:'511260', name:'国债ETF', sector:'债券'},
+    {code:'511010', name:'国债ETF', sector:'债券'},
+    {code:'511030', name:'企业债ETF', sector:'债券'},
+    {code:'159972', name:'短融ETF', sector:'债券'}
   ];
 
   var SECTOR_COLORS = {
     '科技成长': '#818cf8', '新能源': '#34d399', '消费': '#fbbf24',
-    '医药': '#f472b6', '金融': '#60a5fa', '周期': '#fb923c', '其他': '#94a3b8'
+    '医药': '#f472b6', '金融': '#60a5fa', '周期': '#fb923c',
+    '宽基': '#a78bfa', '红利': '#fcd34d', '债券': '#6ee7b7',
+    '其他': '#94a3b8'
   };
 
   var etfData = [];
@@ -442,7 +492,9 @@ tr:hover td{background:#263548}
         var baseChange = (rand() - 0.45) * 3; // 平均微涨
         var sectorBias = {
           '科技成长': 0.3, '新能源': -0.2, '消费': 0.1,
-          '医药': -0.1, '金融': 0.05, '周期': -0.05, '其他': 0.15
+          '医药': -0.1, '金融': 0.05, '周期': -0.05,
+          '宽基': 0.1, '红利': 0.08, '债券': 0.02,
+          '其他': 0.15
         };
         var change = baseChange + (sectorBias[etf.sector] || 0) + randn() * 0.8;
         change = Math.max(-8, Math.min(8, change));
@@ -937,6 +989,163 @@ tr:hover td{background:#263548}
     filterTable();
   }
 
+  window.renderFlowTrend = renderFlowTrend;
+  window.renderLongPriceTrend = renderLongPriceTrend;
+  window.renderYearlyCharts = renderYearlyCharts;
+
+  // 计算年度数据
+  function calcYearlyData() {
+    if (!longTrendData.length) return { years: [], sectorYearly: {}, etfYearly: [] };
+
+    var yearsMap = {};
+    longTrendData.forEach(function(d) {
+      var y = d.date.substring(0, 4);
+      if (!yearsMap[y]) yearsMap[y] = [];
+      yearsMap[y].push(d);
+    });
+    var years = Object.keys(yearsMap).sort();
+
+    // 计算各ETF年度涨跌幅
+    var etfYearly = {};
+    ETF_POOL.forEach(function(e) { etfYearly[e.code] = {}; });
+
+    years.forEach(function(year) {
+      var yearDays = yearsMap[year];
+      if (yearDays.length < 2) return;
+      var firstDay = yearDays[0];
+      var lastDay = yearDays[yearDays.length - 1];
+
+      var firstMap = {};
+      var lastMap = {};
+      firstDay.etfs.forEach(function(e) { firstMap[e.code] = e; });
+      lastDay.etfs.forEach(function(e) { lastMap[e.code] = e; });
+
+      ETF_POOL.forEach(function(etf) {
+        var first = firstMap[etf.code];
+        var last = lastMap[etf.code];
+        if (first && last) {
+          var ytd = last.price / first.price - 1;
+          etfYearly[etf.code][year] = Math.round(ytd * 1000) / 10;
+        }
+      });
+    });
+
+    // 板块年度收益（板块内ETF平均）
+    var sectorYearly = {};
+    Object.keys(SECTOR_COLORS).forEach(function(sec) {
+      sectorYearly[sec] = {};
+      years.forEach(function(y) {
+        var vals = [];
+        ETF_POOL.forEach(function(e) {
+          if (e.sector === sec && etfYearly[e.code][y] !== undefined) {
+            vals.push(etfYearly[e.code][y]);
+          }
+        });
+        if (vals.length) {
+          sectorYearly[sec][y] = Math.round(vals.reduce(function(a,b){return a+b;},0) / vals.length * 10) / 10;
+        }
+      });
+    });
+
+    return { years: years, sectorYearly: sectorYearly, etfYearly: etfYearly };
+  }
+
+  function renderYearlyCharts() {
+    var yd = calcYearlyData();
+    var years = yd.years;
+    var yearSel = document.getElementById('yearSelect');
+    var selYear = yearSel ? yearSel.value : years[years.length - 1];
+
+    // 初始化年份选择器
+    if (yearSel && !yearSel.options.length) {
+      years.forEach(function(y) {
+        var opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y + '年';
+        if (y === selYear) opt.selected = true;
+        yearSel.appendChild(opt);
+      });
+    }
+
+    // 图1：板块年度涨跌幅柱状图（选中年份）
+    if (!charts.yearlySector) charts.yearlySector = echarts.init(document.getElementById('chartYearlySector'));
+    var sectors = Object.keys(SECTOR_COLORS).filter(function(s) {
+      return yd.sectorYearly[s] && yd.sectorYearly[s][selYear] !== undefined;
+    });
+    var sectorVals = sectors.map(function(s) { return yd.sectorYearly[s][selYear] || 0; });
+
+    charts.yearlySector.setOption({
+      tooltip: { trigger: 'axis', formatter: function(p) { return p[0].name + ': ' + p[0].value + '%'; } },
+      grid: { left: 60, right: 20, top: 20, bottom: 40 },
+      xAxis: { type: 'category', data: sectors, axisLabel: { color: '#94a3b8', fontSize: 10, rotate: 30 }, axisLine: { lineStyle: { color: '#475569' } } },
+      yAxis: { type: 'value', name: '涨跌幅%', axisLabel: { color: '#94a3b8', formatter: '{value}%' }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      series: [{
+        type: 'bar', data: sectorVals,
+        itemStyle: {
+          color: function(params) {
+            return sectorVals[params.dataIndex] >= 0 ? '#ef4444' : '#22c55e';
+          },
+          borderRadius: [4, 4, 0, 0]
+        },
+        label: { show: true, position: 'top', color: '#e2e8f0', fontSize: 10, formatter: '{c}%' }
+      }]
+    }, true);
+
+    // 图2：ETF年度涨幅TOP10
+    if (!charts.yearlyTop) charts.yearlyTop = echarts.init(document.getElementById('chartYearlyTop'));
+    var allEtfYear = [];
+    ETF_POOL.forEach(function(e) {
+      var v = yd.etfYearly[e.code] ? yd.etfYearly[e.code][selYear] : undefined;
+      if (v !== undefined) allEtfYear.push({ name: e.name, value: v, sector: e.sector });
+    });
+    allEtfYear.sort(function(a, b) { return b.value - a.value; });
+    var top10 = allEtfYear.slice(0, 10);
+
+    charts.yearlyTop.setOption({
+      tooltip: { trigger: 'axis', formatter: function(p) { return p[0].name + ': ' + p[0].value + '%'; } },
+      grid: { left: 90, right: 40, top: 10, bottom: 20 },
+      xAxis: { type: 'value', axisLabel: { color: '#94a3b8', formatter: '{value}%' }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      yAxis: { type: 'category', data: top10.map(function(e){return e.name;}).reverse(), axisLabel: { color: '#94a3b8', fontSize: 10 }, axisLine: { lineStyle: { color: '#475569' } } },
+      series: [{
+        type: 'bar', data: top10.map(function(e){return e.value;}).reverse(),
+        itemStyle: {
+          color: function(params) {
+            var idx = top10.length - 1 - params.dataIndex;
+            return top10[idx].value >= 0 ? '#ef4444' : '#22c55e';
+          },
+          borderRadius: [0, 4, 4, 0]
+        },
+        label: { show: true, position: 'right', color: '#e2e8f0', fontSize: 10, formatter: '{c}%' }
+      }]
+    }, true);
+
+    // 图3：各板块历年收益对比（折线）
+    if (!charts.yearlyCompare) charts.yearlyCompare = echarts.init(document.getElementById('chartYearlyCompare'));
+    var seriesList = Object.keys(SECTOR_COLORS).map(function(sec) {
+      var data = years.map(function(y) {
+        return yd.sectorYearly[sec] && yd.sectorYearly[sec][y] !== undefined ? yd.sectorYearly[sec][y] : null;
+      });
+      return {
+        name: sec, type: 'line', data: data, smooth: true, symbol: 'circle', symbolSize: 6,
+        lineStyle: { width: 2, color: SECTOR_COLORS[sec] },
+        itemStyle: { color: SECTOR_COLORS[sec] }
+      };
+    });
+
+    charts.yearlyCompare.setOption({
+      tooltip: { trigger: 'axis', formatter: function(params) {
+        var html = params[0].axisValue + '年<br/>';
+        params.forEach(function(p) { if (p.value !== null && p.value !== undefined) html += p.marker + p.seriesName + ': ' + p.value + '%<br/>'; });
+        return html;
+      }},
+      legend: { data: Object.keys(SECTOR_COLORS), textStyle: { color: '#94a3b8', fontSize: 11 }, top: 0, type: 'scroll' },
+      grid: { left: 50, right: 20, top: 30, bottom: 30 },
+      xAxis: { type: 'category', data: years.map(function(y){return y+'年';}), axisLine: { lineStyle: { color: '#475569' } }, axisLabel: { color: '#94a3b8', fontSize: 10 } },
+      yAxis: { type: 'value', name: '涨跌幅%', axisLabel: { color: '#94a3b8', formatter: '{value}%' }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      series: seriesList
+    }, true);
+  }
+
   window.filterTable = function() {
     var data = window._fullData || [];
     var sector = document.getElementById('sectorFilter').value;
@@ -1140,6 +1349,7 @@ tr:hover td{background:#263548}
     renderLongPriceTrend();
     renderScatter();
     renderWeekMonthCharts();
+    renderYearlyCharts();
     renderTable();
   }
 
