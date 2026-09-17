@@ -226,6 +226,7 @@ tr:hover td{background:#263548}
           <option value="60">近60日</option>
           <option value="120" selected>近6个月</option>
           <option value="250">近1年</option>
+          <option value="500">近2年</option>
         </select>
       </span>
     </h3>
@@ -285,6 +286,46 @@ tr:hover td{background:#263548}
     <div class="chart-card">
       <h3>💰 月度资金流排行 <span class="hint">近20日累计净流入（亿）</span></h3>
       <div id="chartMonthFlow" style="width:100%;height:300px"></div>
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <!-- ETF单品分析 -->
+  <div class="chart-card chart-full" style="margin-bottom:20px">
+    <h3>
+      🔍 ETF单品分析 <span class="hint">选择具体ETF，查看价格/资金流/累计收益日频趋势</span>
+      <span style="display:flex;gap:8px;align-items:center">
+        <select id="etfPicker" onchange="renderEtfDetail()" style="background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:6px;padding:5px 10px;font-size:12px;min-width:150px">
+        </select>
+        <select id="etfRange" onchange="renderEtfDetail()" style="background:#334155;color:#e2e8f0;border:1px solid #475569;border-radius:6px;padding:5px 10px;font-size:12px">
+          <option value="20">近20日</option>
+          <option value="60">近60日</option>
+          <option value="120" selected>近6个月</option>
+          <option value="250">近1年</option>
+          <option value="500">近2年</option>
+        </select>
+      </span>
+    </h3>
+
+    <!-- ETF基本信息卡片 -->
+    <div id="etfInfoCards" class="stat-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px">
+    </div>
+
+    <!-- 三张趋势图 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+      <div>
+        <div class="chart-title-sm">💰 价格走势</div>
+        <div id="chartEtfPrice" style="width:100%;height:280px"></div>
+      </div>
+      <div>
+        <div class="chart-title-sm">💸 每日资金净流入</div>
+        <div id="chartEtfFlow" style="width:100%;height:280px"></div>
+      </div>
+      <div>
+        <div class="chart-title-sm">📈 累计收益（起点=100）</div>
+        <div id="chartEtfCumulative" style="width:100%;height:280px"></div>
+      </div>
     </div>
   </div>
 
@@ -993,6 +1034,119 @@ tr:hover td{background:#263548}
   window.renderLongPriceTrend = renderLongPriceTrend;
   window.renderYearlyCharts = renderYearlyCharts;
 
+  // ETF单品分析
+  function renderEtfDetail() {
+    if (!longTrendData.length) return;
+
+    var picker = document.getElementById('etfPicker');
+    var rangeSel = document.getElementById('etfRange');
+    var code = picker ? picker.value : ETF_POOL[0].code;
+    var range = rangeSel ? parseInt(rangeSel.value) : 120;
+
+    // 初始化下拉框
+    if (picker && !picker.options.length) {
+      ETF_POOL.forEach(function(e) {
+        var opt = document.createElement('option');
+        opt.value = e.code;
+        opt.textContent = e.name + ' (' + e.code + ')';
+        picker.appendChild(opt);
+      });
+      picker.value = code;
+    }
+
+    var etfInfo = ETF_POOL.find(function(e) { return e.code === code; });
+    if (!etfInfo) return;
+
+    // 提取该ETF的长周期数据
+    var etfHistory = longTrendData.map(function(d) {
+      var etf = d.etfs.find(function(e) { return e.code === code; });
+      return etf ? { date: d.date, time: d.time, price: etf.price, flow: etf.flow, change: etf.change, aum: etf.aum } : null;
+    }).filter(function(x) { return x !== null; });
+
+    var showDays = Math.min(range, etfHistory.length);
+    var data = etfHistory.slice(-showDays);
+    var dates = data.map(function(d) { return d.date.slice(5); });
+
+    // 基本信息卡片
+    var latest = data[data.length - 1];
+    var first = data[0];
+    var totalReturn = first.price ? ((latest.price / first.price - 1) * 100).toFixed(2) : '0';
+    var totalFlow = data.reduce(function(s, d) { return s + (d.flow || 0); }, 0);
+    var maxPrice = Math.max.apply(null, data.map(function(d){return d.price;}));
+    var minPrice = Math.min.apply(null, data.map(function(d){return d.price;}));
+    var maxDrawdown = 0;
+    var peak = data[0].price;
+    for (var i = 1; i < data.length; i++) {
+      if (data[i].price > peak) peak = data[i].price;
+      var dd = (data[i].price / peak - 1) * 100;
+      if (dd < maxDrawdown) maxDrawdown = dd;
+    }
+
+    var infoHtml = [
+      { label: '最新价格', val: latest.price.toFixed(3), color: totalReturn >= 0 ? '#ef4444' : '#22c55e' },
+      { label: '区间涨跌', val: totalReturn + '%', color: totalReturn >= 0 ? '#ef4444' : '#22c55e' },
+      { label: '区间净流入', val: totalFlow.toFixed(1) + '亿', color: totalFlow >= 0 ? '#ef4444' : '#22c55e' },
+      { label: '最高/最低', val: maxPrice.toFixed(2) + ' / ' + minPrice.toFixed(2), color: '#94a3b8' },
+      { label: '最大回撤', val: maxDrawdown.toFixed(1) + '%', color: '#f97316' }
+    ].map(function(c) {
+      return '<div class="stat-card" style="background:#1e293b;border-radius:10px;padding:12px;text-align:center"><div style="font-size:11px;color:#64748b;margin-bottom:4px">' + c.label + '</div><div style="font-size:18px;font-weight:700;color:' + c.color + '">' + c.val + '</div></div>';
+    }).join('');
+    document.getElementById('etfInfoCards').innerHTML = infoHtml;
+
+    var color = SECTOR_COLORS[etfInfo.sector] || '#6366f1';
+
+    // 图1：价格走势
+    if (!charts.etfPrice) charts.etfPrice = echarts.init(document.getElementById('chartEtfPrice'));
+    charts.etfPrice.setOption({
+      tooltip: { trigger: 'axis', formatter: function(p) { return p[0].axisValue + '<br/>价格: ' + p[0].value.toFixed(3); } },
+      grid: { left: 50, right: 20, top: 20, bottom: 30 },
+      xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#475569' } }, axisLabel: { color: '#94a3b8', fontSize: 10, interval: Math.floor(dates.length / 6) } },
+      yAxis: { type: 'value', scale: true, axisLabel: { color: '#94a3b8' }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      series: [{
+        type: 'line', data: data.map(function(d){return d.price;}),
+        smooth: true, symbol: 'none', lineStyle: { width: 2, color: color },
+        areaStyle: { opacity: 0.15, color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:color},{offset:1,color:'transparent'}]) }
+      }]
+    }, true);
+
+    // 图2：每日资金净流入（柱状）
+    if (!charts.etfFlow) charts.etfFlow = echarts.init(document.getElementById('chartEtfFlow'));
+    charts.etfFlow.setOption({
+      tooltip: { trigger: 'axis', formatter: function(p) { return p[0].axisValue + '<br/>净流入: ' + p[0].value.toFixed(2) + '亿'; } },
+      grid: { left: 50, right: 20, top: 20, bottom: 30 },
+      xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#475569' } }, axisLabel: { color: '#94a3b8', fontSize: 10, interval: Math.floor(dates.length / 6) } },
+      yAxis: { type: 'value', name: '亿', axisLabel: { color: '#94a3b8' }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      series: [{
+        type: 'bar', data: data.map(function(d){return Math.round(d.flow*100)/100;}),
+        itemStyle: {
+          color: function(params) { return params.data >= 0 ? '#ef4444' : '#22c55e'; },
+          borderRadius: [2, 2, 0, 0]
+        }
+      }]
+    }, true);
+
+    // 图3：累计收益（起点=100）
+    if (!charts.etfCumulative) charts.etfCumulative = echarts.init(document.getElementById('chartEtfCumulative'));
+    var base = data[0].price;
+    var cumData = data.map(function(d) { return Math.round(d.price / base * 1000) / 10; });
+    var totalRet = cumData[cumData.length - 1] - 100;
+    charts.etfCumulative.setOption({
+      tooltip: { trigger: 'axis', formatter: function(p) { return p[0].axisValue + '<br/>累计: ' + p[0].value.toFixed(2) + ' (' + (p[0].value - 100 >= 0 ? '+' : '') + (p[0].value - 100).toFixed(2) + '%)'; } },
+      grid: { left: 50, right: 20, top: 20, bottom: 30 },
+      xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#475569' } }, axisLabel: { color: '#94a3b8', fontSize: 10, interval: Math.floor(dates.length / 6) } },
+      yAxis: { type: 'value', name: '累计(起点=100)', axisLabel: { color: '#94a3b8' }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      series: [{
+        type: 'line', data: cumData, smooth: true, symbol: 'none',
+        lineStyle: { width: 2, color: totalRet >= 0 ? '#ef4444' : '#22c55e' },
+        areaStyle: { opacity: 0.15, color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color: totalRet >= 0 ? '#ef4444' : '#22c55e'},{offset:1,color:'transparent'}]) },
+        markLine: {
+          data: [{ yAxis: 100, lineStyle: { color: '#475569', type: 'dashed', width: 1 }, label: { formatter: '起点', color: '#64748b', fontSize: 10 } }]
+        }
+      }]
+    }, true);
+  }
+  window.renderEtfDetail = renderEtfDetail;
+
   // 计算年度数据
   function calcYearlyData() {
     if (!longTrendData.length) return { years: [], sectorYearly: {}, etfYearly: [] };
@@ -1347,6 +1501,7 @@ tr:hover td{background:#263548}
     renderFlowTrend();
     renderPriceTrend();
     renderLongPriceTrend();
+    renderEtfDetail();
     renderScatter();
     renderWeekMonthCharts();
     renderYearlyCharts();
@@ -1370,7 +1525,7 @@ tr:hover td{background:#263548}
     }
 
     updateStatus('updating');
-    longTrendData = generateTrendData(250, 12345);
+    longTrendData = generateTrendData(500, 12345);
     trendData = longTrendData.slice(-20);
     etfData = buildData({});
     renderAll();
